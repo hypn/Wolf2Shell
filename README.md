@@ -1,10 +1,12 @@
 # Wolf2Shell
 
-**Wolf2Shell is an arbitrary code execution exploit for id Software's _Wolfenstein 3D_ (1992, DOS).** A crafted savegame causes the game to run attacker-supplied shellcode embedded in the save file, yielding control of the DOS machine. It abuses the save loader's failure to validate actor state pointers during deserialization; the payload executes in 16-bit real mode, where save data is loaded into executable memory.
+**Wolf2Shell is an arbitrary code execution exploit for id Software's _Wolfenstein 3D_ (1992, DOS)** - by [@HypnInfosec](https://x.com/hypninfosec/) and multiple AI models.
+
+A crafted savegame causes the game to run attacker-supplied shellcode embedded in the save file, yielding control of the DOS machine. It abuses the save loader's failure to validate actor state pointers during deserialization; the payload executes in 16-bit real mode, where save data is loaded into executable memory.
 
 ![demoscene.gif](assets/demoscene.gif)
 
-(Tested against GOG's `setup_wolfenstein_3d_1.4_(28045).exe`)
+(Tested against GOG's `setup_wolfenstein_3d_1.4_(28045).exe`. See [more demos](assets/README.md))
 
 ## Vulnerability
 

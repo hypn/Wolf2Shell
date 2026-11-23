@@ -160,7 +160,7 @@ Everything else (save layout, `objtype`/`statetype`, obj#11, checksum, sentinel)
 is identical between the two builds. The retail values are confirmed for the
 GOG/retail LZEXE-packed `WOLF3D.EXE`; the shareware values are derived from the
 LZEXE-packed shareware `WOLF3D.EXE` v1.4. See [`../../HURDLES.md`](../../HURDLES.md)
-§9 and [`../../SHAREWARE.md`](../../SHAREWARE.md) for the derivation.
+ and [`../../SHAREWARE.md`](../../SHAREWARE.md) for the derivation.
 
 ## Notes
 

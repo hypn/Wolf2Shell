@@ -34,8 +34,7 @@ addressed as follows:
 
 The shareware `.WL1` build is now covered: its own DGROUP delta and
 save/DGROUP offsets have been derived and are selectable with
-`make-save.py --version shareware` (see §9 and
-[`tools/make-save/README.md`](tools/make-save/README.md)). The remaining
+`make-save.py --version shareware` (see [`tools/make-save/README.md`](tools/make-save/README.md)). The remaining
 portability target is the demo (and any other alternate build), which needs its
 own delta and re-confirmed offsets, with the pointer model validated per build.
 
