@@ -301,7 +301,9 @@ and all offsets must be recalculated if the payload length changes.
 - The DGROUP delta is specific to the executable build; the PSP/load segment is
   specific to the DOS session.
 - Other builds — notably the shareware `.WL1` release and the demo — require
-  their own delta and re-confirmed save/DGROUP offsets.
+  their own delta and re-confirmed save/DGROUP offsets. The shareware values are
+  derived and shipped (`DGROUP_REL 0x3783`, `objlist 0xAB6E`, `tilemap 0x6BD8`);
+  the demo is still outstanding.
 - The donor-object neutralization assumes `areabyplayer[0] == 0`.
 - MAP addresses are link-time; runtime code/data segments must account for the
   load segment.

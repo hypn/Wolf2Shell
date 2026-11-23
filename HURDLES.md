@@ -32,9 +32,12 @@ addressed as follows:
 - **Observability:** a minimal, register-independent payload confirms execution
   before richer payloads are tested.
 
-The remaining challenge is portability. Other builds — notably the shareware
-`.WL1` release and the demo — require their own DGROUP delta and re-confirmed
-save/DGROUP offsets, and the pointer model must be validated for each.
+The shareware `.WL1` build is now covered: its own DGROUP delta and
+save/DGROUP offsets have been derived and are selectable with
+`make-save.py --version shareware` (see §9 and
+[`tools/make-save/README.md`](tools/make-save/README.md)). The remaining
+portability target is the demo (and any other alternate build), which needs its
+own delta and re-confirmed offsets, with the pointer model validated per build.
 
 ## 1. Runtime DGROUP segment relocation
 
@@ -188,6 +191,23 @@ width, and an incorrect stack assumption all present as the same symptoms
 - Consequently, a save that works in one build/environment is not portable to
   another without re-measuring the PSP and re-deriving the build-specific
   delta.
+
+### Derived values per build
+
+| Value | retail (`.WL6`) | shareware (`.WL1`) | How obtained |
+| --- | ---: | ---: | --- |
+| `DGROUP_REL` | `0x398D` | `0x3783` | emulate the LZEXE unpack stub, read the `mov dx, DGROUP` immediate |
+| `objlist` (DGROUP-relative) | `0xB51C` | `0xAB6E` | shareware value read from the base save's own `actorat` near pointers |
+| `tilemap` (DGROUP-relative) | `0x75BA` | `0x6BD8` | code-immediate match against the retail image |
+
+`objlist` can be recovered from any save without touching the binary: every
+non-wall `actorat[x][y]` entry is a near pointer equal to
+`objlist + k * sizeof(objtype)` for the object `k` sitting on that tile. The PSP
+is still measured per session with `PROBE.COM`.
+
+The shareware values are wired into `make-save.py` as `--version shareware`.
+The demo build still needs its own derivation (its unpacked startup suggests a
+`0x3818` delta, but that must be confirmed).
 
 ---
 

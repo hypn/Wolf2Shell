@@ -15,8 +15,17 @@ layout in [../TECHNICAL_INFO.md](../../TECHNICAL_INFO.md), and the top-level
 | File | Purpose |
 | --- | --- |
 | `make-save.py` | The builder. Python 3, no third-party modules. |
-| `SAVEGAME.WL6` | Clean base save (retail, 19,273 bytes) used as the source. |
+| `embed-save.py` | Refreshes an embedded base save from a clean save file. |
 | `wolf2shell.asm` | Demo payload source for `--payload asm` (VGA plasma, scroller, PC-speaker). |
+
+The clean base saves are **embedded** in `make-save.py` as gzip+base64 strings
+(`EMBEDDED_SAVES`), so the builder is self-contained and needs no external save
+files. To swap in a fresh base save, run `embed-save.py`:
+
+```bash
+python3 tools/make-save/embed-save.py retail    /path/to/SAVEGAM0.WL6
+python3 tools/make-save/embed-save.py shareware /path/to/SAVEGAM0.WL1
+```
 
 `text` and `asm` payloads require [NASM](https://www.nasm.us/) on `PATH` (or
 pass `--nasm`).
@@ -29,10 +38,15 @@ Run from the repository root:
 python3 make-save.py --slot 0 --payload reboot
 python3 make-save.py --slot 1 --payload text --text "Wolf2Shell by Hypn"
 python3 make-save.py --slot 2 --payload asm --asm wolf2shell.asm
+
+# Shareware (Wolfenstein 3D v1.4, SAVEGAM?.WL1):
+python3 make-save.py --version shareware --slot 0 --payload reboot
 ```
 
-Output goes to the repository's `savegames/` directory by default. Copy the
-generated `SAVEGAM<slot>.WL6` next to `WOLF3D.EXE` and load that slot in-game.
+Output goes to `./output/` (relative to the current working directory, not the
+script location) by default. Copy the
+generated `SAVEGAM<slot>.WL6` (retail) or `SAVEGAM<slot>.WL1` (shareware) next
+to `WOLF3D.EXE` and load that slot in-game.
 
 ### Options
 
@@ -43,10 +57,10 @@ generated `SAVEGAM<slot>.WL6` next to `WOLF3D.EXE` and load that slot in-game.
   --asm ASM                     ASM file for --payload asm (default: wolf2shell.asm)
 
 (defaults)
-  --name NAME                   In-game save name (default: Wolf2Shell)
-  --version {retail}            Game version (default: retail)
+  --name NAME                   In-game save name (default: Reboot! / Text + Shell / ASM payload!)
+  --version {retail,shareware}  Game version (default: retail)
   --psp PSP                     Wolf3d.exe PSP segment in hex (default: 0192)
-  --outdir OUTDIR               Output directory (default: savegames)
+  --outdir OUTDIR               Output directory (default: ./output)
 
 (advanced)
   --dgroup DGROUP               Override runtime DGROUP segment directly
@@ -110,22 +124,43 @@ game:
 
 ```text
 LOAD_SEGMENT    = PSP + 0x10
-DGROUP(runtime) = LOAD_SEGMENT + 0x398D     (retail build)
+DGROUP(runtime) = LOAD_SEGMENT + DGROUP_REL
+                   retail:    DGROUP_REL = 0x398D
+                   shareware: DGROUP_REL = 0x3783
 ```
 
 `--psp` supplies the measured value. `PROBE.COM` in
 [../probe/](../probe/README.md) reports the PSP for the current DOS session.
 If the runtime segment is already known, `--dgroup` sets it directly;
-`--dgroup-rel` overrides the `0x398D` delta for a different build.
+`--dgroup-rel` overrides the delta for a different build.
+
+## Game versions
+
+`--version` selects the build-specific constants (all DGROUP-relative):
+
+| Value | `retail` (`.WL6`) | `shareware` (`.WL1`) | How it is obtained |
+| --- | ---: | ---: | --- |
+| `DGROUP_REL` | `0x398D` | `0x3783` | emulate the LZEXE stub, read the `mov dx, DGROUP` immediate |
+| `objlist_off` | `0xB51C` | `0xAB6E` | shareware value confirmed from the base save's own `actorat` near pointers |
+| `tilemap_off` | `0x75BA` | `0x6BD8` | code-immediate match against the retail image |
+
+Everything else (save layout, `objtype`/`statetype`, obj#11, checksum, sentinel)
+is identical between the two builds. The retail values are confirmed for the
+GOG/retail LZEXE-packed `WOLF3D.EXE`; the shareware values are derived from the
+LZEXE-packed shareware `WOLF3D.EXE` v1.4. See [`../../HURDLES.md`](../../HURDLES.md)
+§9 and [`../../SHAREWARE.md`](../../SHAREWARE.md) for the derivation.
 
 ## Notes
 
 - Slots are `0`–`9`; the engine builds save names with a single digit.
-- `--name` sets the save label stored in the 32-byte header (not checksummed).
-- Generated files are written as `SAVEGAM<slot>.WL6`; use `--outdir` to write
-  elsewhere.
+- `--name` sets the save label stored in the 32-byte header (not checksummed). It
+  defaults to a per-payload label (`Reboot!`, `Text + Shell`, `ASM payload!`), so
+  the three payloads are distinguishable in the Load Game menu.
+- Generated files are written as `SAVEGAM<slot>.WL6` (retail) or
+  `SAVEGAM<slot>.WL1` (shareware); use `--outdir` to write elsewhere.
 - The `text` payload creates or overwrites `PWNED.txt` next to the game and
   writes the `--text` message into it (no trailing newline).
-- The defaults (`--psp 0192`, `DGROUP_REL 0x398D`, object/tilemap offsets) match
-  the retail GOG build. Runtime segment values vary by DOS environment, so
-  measure the PSP in the session that will load the save.
+- The retail defaults (`--psp 0192`, `DGROUP_REL 0x398D`, object/tilemap offsets)
+  match the retail GOG build; `--version shareware` uses the shareware constants.
+  Runtime segment values vary by DOS environment, so measure the PSP in the
+  session that will load the save.

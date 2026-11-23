@@ -17,8 +17,8 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent.parent
-DEFAULT_OUTDIR = ROOT / "savegames"
+# Default output directory, relative to the current working directory.
+DEFAULT_OUTDIR = Path("output")
 
 # Save layout (non-SPEAR, 19273-byte saves)
 SZ_HDR = 32
@@ -40,17 +40,21 @@ VERSION_DEFAULTS = {
     "retail": {
         "ext": ".WL6",
         "dgroup_rel": 0x398D,
-        "src": HERE / "SAVEGAME.WL6",
         "objlist_off": DEFAULT_OBJLIST_OFF,
         "tilemap_off": DEFAULT_TILEMAP_OFF,
     },
-    # "shareware": {
-    #     "ext": ".WL1",
-    #     "dgroup_rel": 0x398D,  # confirm for shareware build before use
-    #     "src": HERE / "wolf3dsw" / "SAVEGAM0.WL1",
-    #     "objlist_off": DEFAULT_OBJLIST_OFF,
-    #     "tilemap_off": DEFAULT_TILEMAP_OFF,
-    # },
+    "shareware": {
+        "ext": ".WL1",
+        # Shareware (WL1) build of WOLF3D.EXE.  DGROUP_REL derived by emulating the
+        # LZEXE 0.91 unpack stub and reading the C0.ASM `mov dx, DGROUP` immediate
+        # (load 0x1000 -> 0x4783); see HURDLES.md / SHAREWARE.md.
+        "dgroup_rel": 0x3783,
+        # Shareware BSS/DGROUP-relative offsets (retail equivalents 0xB51C / 0x75BA).
+        # objlist is confirmed from the save's own actorat near pointers; tilemap by
+        # matching code immediates against the retail build.
+        "objlist_off": 0xAB6E,
+        "tilemap_off": 0x6BD8,
+    },
 }
 
 
@@ -104,22 +108,19 @@ def resolve_dgroup(args: argparse.Namespace) -> int:
     return dgroup
 
 
-# Embedded clean base saves (gzip + ascii85) so the script works standalone.
+# Embedded clean base saves (gzip + base64) so the script works standalone.
 EMBEDDED_SAVES = {
-    "retail": "ABzY8000000{`t>ZEO_B8J?N--R<0+&lqEDgU|MzjWHNwiuv%xxUEBf92HU`6{-1Ak%SVJR#htzt5xYAQ^*Gd0!fG}RTXg}VLRY2)%ZS=s<k4eKM+-ssMJ5G35cj|gj7|HS~Ws)=bhczoBg~`->;kX?#%AaGtc|J^X@ydbL$tM|H%tqLH!6LG%`4{fTyEpP99x7rc6is5hQ|g>Fd8nNI}Pu%F38;*5pGiXaj0MYniYu5w^h}J19iIQpYdzzr2Znl4Gufd0QZ0h?mO1d-LN05^xY!Q^8n6)Uhj!ndIXq3d1VA$g2`E_UafG=lVtGB)bQ60QU+>X*d!O`JtL$ukP3RWu*(@$3}IggF>)`CvZ**lz+^WvGk;D|7O<~>hwBiwd`dB^jZ#I*NmE7&F{u9xdT4<#zE|5M5qIvuVAbG+#uMa4`lmG;uuB~or>L>u=u#m>2+6d#S`VpGh<5bT;U$6$o9eB&w#^Sf(ycHal`8gVbZ-mme2NirE{Y<@P6#&AH+pIQYgRoJ<kZ?_mEC|wuvXd*IiObZ1a##VfPeEf7>_?UOHHkZA8lR?CQm^o|q(l7DD}!K+Wu$Dkmr13_Nz~QI)FtAM6GqczEJ)h=bS}fPi1b92pMdH6OGo4ABCw*EHju_*H;$EZ=Q-o`RbEio=+f<LA4M59&2FU>NE4Gx#NoQ5kQSKOEBWLE|E;%1lM6c2JXVCMiu`Nm7YlR6Q&Ywcj*KN$ILww(0*1`Q|G|>4J3ivRoxl82=$RezidTDc4@JLGrC6JG`Bg`_Iw-#sDhJPx&#A{e}NRycGRU-1?t-;st*lar0l<|4(!O4_jtZ+IVR7Uz_|~g0KaT9p$HBOx+f$1#cZuc*G<oe%0~$cf=Dy51mV@q=0Fw{?J*jQm$tKlU{6u90$B}yecG7RrfxX>M^TGJT*^#X-WLj<5Hshd@B{Ndy1O8m@G+u{@hZP7OOw_Db<1>;N^Hxpzt8{`9nNxQnhIPCFASnE0Uke@k^y;@T1c7m*C~`tF%1*QAzfvX8Bd0O3Sc+(a%4B;Hgg=b}248QB!iAw&mZ5zKf$)QlvBOPMuUccPxJ+#)~B`VTFTKfM4*wR21`Mrc(Suf>QLy721fAYi%mhnw55^POpRX-Y?hwgmVysOI{_*`PZu!R8FGO_;Y?^_Bmo`Z|;f3wAs@{nUrXM<26=Zkm2Xz{%{&0V(|tnF;zx?t#oHu_9I0<5=T$OMsJnV|FSiaMMJkUWLsS|OVwP040RT!v!+&Gc3^tVk-v_yqoO6iCFqY`^jFXurYESlo=B!dJ0j*Qj;qz?{wF5iE#*0I^M5%CnRO?&8pzTHD#;U_{W$+fV~z^N^K14#V~KycO_5@x;(#vC{@51Z^N$Uc;g{zdrH&z*?OrcK=kmwU()`XG#lk6M^Znx5Aw}AcR9ydZaFA9~rOY89ejLdbZ#!a&W~J+2Dwb4i-o{tUvc=j?EIKK9p6^1Qz)NL}JLT(N>bUE~AGU0oP5k;S)bC=UX1$*3y1DC5^6+EJ_~*W<h;lCZC~`YTknIy}51E*tWW*$0f9pKQja_<=7w^-?FWgpsbM*D%#|6eH6-n>$w%p2(Z2Y+`XtKXj;CrT%{<+-DAGFMBf+qgQDYO6C^>_9$YU010&GGvR(qDK2GTFgCP71H0`caf%d($|(B1xn=@ISLG^Sh;>!!^~VuIk!~Q~%3)!OszAQ%=ZN9Ijn(VY%$eAINL}V)Um)>#tV0|EbjXs;T^zQF>eIe_E9P%TX}*e(@+R{NL*Jxw6~ySD61><F6Rqtj|9w`uV3W@$brVetv9=zoe-6tA2o7<Ns-?*TZ?%<Z|(c<c+`i?Vsy|a2|f^_~&JRYIvsEFVsBz`QA~C4?d)K7AO9~$N$3lVFR7c@pedsR$I*@op)U-^=D;Pda>gyrx5;P=2w;4sOia)M?L5HRpt4q=gKdwqW<=DFH>#%=k}aeREMA1{O)2^{EwRWbEEHC_dhi@dFChh-R2jSwY=EQn`WC-8t>FK<u|9k46=CN+UidoXLF+ek27gnv(?jItZ`Md|DEEU+5gol^Q%?VpK_azr=9Fy4gaSO^M85v@6+?O<i{@dU;FW&O7FTpOZ>rA*r>-=?pk*()lx0hQZ1GL&s7y`g}oTJi4PLcM3n6b6h#S_Pad=+7E%>-svV0@N+x1#rzpk-iXKb-Ht7qBE6eT6cI;NRhtO6O^2FX*e#U|Ync1XdVjUYK*BOf@PS|kjiUrGVO*C<A6T^0UV3Vmk4l;+?-iX4e(UbRVO8cSJjE!?_oM9CY>`E$`vdi4e_VuV4t@o7qaq6srHU3FyqLb|#Q778y$vd20vG6hvnFz3b6AB>M-Ld28#}3#L&OO4IyF9Rq>ESeHtt;p{U>|Vou>kiiKl3b~2li2VoMC+o`zyfyonue*a_km{#U9wc%p$`E8ONy(jM`_kKH7&K{-qo3V;<RMdv5L-q8!gWN^1*tKVaAkzX#q6UmIrlezYI;Gmm!1PG<TtnA_^St}pO1v91oV7I%8u`CjID#_k)t*gk-Ep#kF~BPVQYb~0nu7cpJ;aqNDE^^*BW_Fl%`zu=RD%qIt#rQLZiXIryop9E|Rm%D{Y?S;LaJ(ATv#kmz##ZoW#=LGXAh*!Tv7x3eaPH{{9;BwY3GsK)x7IQ{zv98VZ#n<iZ>S_bJ`n?a)w>$hN|8sSCbtk($bQDc~gY9r0VU}dm_SNtD21ib8KJlHd)yV2e^fao6PZuvn)uXc!*3MS-uk(=m={r;Hh|~w@Cp=ea=X56`l+tH;-bp{1h2D$Pcjh49LZ6+7+#j6OaKTSCT(E08hDeA8pX0b~!RHnr-yWRgd4KTJg)T&b{?NM`E_7eRg<={m^gPd-LigWa2VN11-GDqEdUp;YT7T$1Z^s{gPs4{FX!vlP<F<v5@%Fce-{X0I_yNxYk%v=&QzJdoa84t~r{U+9P~;)c!;zjDUa#S^DR8S$!)ILn`i2)~;N0IhJ+%#fqG_C-2ECga|HkEuub-KN+~4&66z~U{{=xC}P2cA@vf=u*&4|<~8$Q3b1?p|MuGQP{InPP+jcdG}jkCO+EgOG0zaDs6=BDAiy=7n)^lNY3$@6IIk7l7g(zd{Hfwq56Z9=56y=`zdibzAW?Z^DSf79X=+z)PA<n6>aE%NpQoBuThdXnf8$9F}C=IUAA6CIj|d|!0wH_+Y_(WNDDw~^?-mq6|V(V?4=k49hQd7$HqDX3rHF+KzN=8i9JK)$VGd;#*&j&WX3?cB@x!<~C)Adkj=It%?6kEMBkZjJqS9&)uiq1Ee7@Os1Di6!_~@I?2|mO!47?*H-gK+l&NZ_g=>x93ZZx91e+J+NiuCe$arzvcQ3_a0d41wDEnFKq?hzTatf*tR+aqm6(2ie{(nE1ds{?JG+vB8sp7G`B0+@sZX)J3ivLkpbmq8{h^%=D5h<$6Vg{u0QbmO}o|WVE^`^L$mNfMs(=hEVL8fbBo{a-E(UmB3WerA7{D|SszdQN$dB-rFp2=mw0Lca2=y}XL-A$cQxGT-Fe9SM!&THeh~lapXZ={M=T9~5vk2SYpIrMsg`P~mTIY%yi<Ef{F6eTQHnQ+^{0kLaV^*^u8|f|3bu<<+$i~C8e#|Tj|uEvqZI5l5PE3<@7^KqHV%qX>mcSI39)*+wR$^oXh>Y^+9T@q7^SX+RvN@T30$!?xLT@S`uT?#{U3))HY!O=000",
-    # "shareware": "ABzY8000000{`t>Uu+b|8K0f?op<ieHa^?fhP$(U_L)BhOfWGV#wd<cbhHSymD)-u;-P9DimFB>QL3UyH3dRq0{I6o;4{S7NEqLplUC%RYL!0JQrq;Um3V0S(4q*bk0E(UOY6=zv$Hq*_xAp9PdDq`ncbb={J!s-Z@-zHTYvk7@4xus%P*WlE(uHJXXX%6(GQSD%L?19DS*0BC;AzBl1Z^8OgH$W2NmmAn%HIbS2AHxa>|vkWD6J!alQ(?H^1T|0SBfvRYl>5CVGW3<5K)srC5~}SyhauUY}CLxqi_($?gFiz`R0I8jjdQeyA4Is|R&{S!qA~icy{FpkhVBV>rh?<)1QTG(9WZzst3SCcVx%p1o#(E*9}kU8u{|{BHb`J1EodOe<bSggW5)s$$ij8AS2u1KIwPIEK+grz&nuSbW^(^tvm!;<5Vd*(tSnt}>5QW&0@J&w#^StoXw7xZ(ALQ0XpDm9l+F>D=fId{FW759}fz_RH^m&oe><J*4B$HumKAx{Lk9HV^4kdQY|Vw~b@^t?7zvBT|WHS1(5NL?sE*5E_&O>Y~>)IXUTO;1#DH)rhA5!EPWzM`w<P8Hk<%2>3<Jk>N02vq77{5H0X}O*7t!UjrD!vfYMfDa7Sh9mc#OKihSDNUzC(5v1GC;Fl~$WV~JeNLa^*jEl4?H5DQJpk?085R$o)Aril+dQ={2ziyN=(p9-^)BhLp%?n29P3h{}a+PL({72mQHJ|zuraiYo=DiF(T+PV+=V*Up02SsZ>{!D7!ha!NivGuL{ZBmcg1-s7`LFE%XPEy-EHf!S9$Nj^CO?xPV!<np@)IzoZVSzVw~i<*Vqz1&=J@<O;xQ&i-pFX!$Fx;{=qy(W)6>VKS20441Kv4a`AJ06y-y>0%qkO4%#&YI5x?}fR46~&D#h!bqGc{+D$<`lw?rf5>JNTOc<=+f94~wd4?@o#VPTVKW$P~)UpHTw{6vml8mWRGRi?iLuZ~|M)#;BavOh7)uLU$xh5gHZ{@DXh0({sdO4*5+lIygs^oI3a9C=BV&iI`ssdn*L{f3PfOQnJp4qO9%!F#?e=12Kj@e2tm(O;?2hK-!JsY+{B{7#cz2kE_Et^G0Mzy_DRN>=o**Da``M3wPd*Xqpe*gX;F&7LO8xI+6Iud(ui3_BP1XLAT)i#I3|Q*HF;rR0k2N2-3rj-IF(y;V*B%hp5|4c*S{tE*<Ix+;*N$-;Eb)aq*vOcx#bn<zUfTLPs5{S_DeRrHSO2`aBAuC0i6M9fzmSF6qak4?T?$#dZ5|8f*E>yB+TkfjY&ktaI)ap{r992Lsv=k`8piGRgSm13mofUeH|iY>mE9vf=IFV8nB9YeV7E?1#*^<!vderJwiCsvTn_seSsmuWv-bN#EqL5k)onL|MQxLqjUcGwinD%ZbKEUwwS4bp=`xwaFFPHKtg+s_mDRu$t;_4-#j?mF>DEE~5;P@jbcT`bh4*V9}#cl~h*e#J8Wxo;XGj7vU>+|CiA`wZQ~CMGC}B=on=bKKaa_jvI>ZT!M*<u^xPFMh>mjM9+w9&gL7{K&>%+(IV%t3KZ|o%Ao}X8w?6RueMuAIq8j&#u3-j}a4pVztO0@TI@-1Z1*<eVi0tMf9U6!S=3kc14m%bKqaTEAzXhki#|2rLN}Mic|l~dcn^T_g9>d7aXp=>B921D}QrI`<J6XDO-Q7#{EyEzSm6U_l(k2ssBk?{x3(t;`_y+yzqak*B8rf&!0d4x5i&Fx>=upT=w%%T;kuuyQTRRTl~dk#oyzr$Tj|-k$OE+Vok0Xe{jk8TiX7`K8Tdyw~l{a_9upCn*Bm6!C&ef#rWVudS`Ls_dovo=Z6h+dV{rtYqZ*G9_hU65~)9Hv(l?L&T{<lmovYr)kaKDmOSb?&#!9FPdrzCNgegKr(K15+rPLMy`nz+#O8OG>f(RI#9thJpLG8dW0Plog5Pa^QCrK4ZPql~<ah4npKSk|wLG0K+Phx*6UW({x&P~>e{qegp8f9>?_~W?7PLC^YjxD0Fq^OCob0dFq5p}){9m5^2lV_&@+&U(fAZr$k=}I!miVL8VIv+}wQJpt)JTogNR3qeKUdYP6$Qn5#0LpzCQkP>ilem4Cl5S{g;W*IZdSx6B{KtbCuo2U6hoH!z0wyH5AXi?t{uCD?qReAg*~y!m1PSSWTumnnGJN1++Zx4IAKq$JhWixt(gvn?V#8}5A3xS{;`T#<_O)}Q3SPn^4?!L;ebstY?5MC4{S7dZN)Bg7u}<%3q?I;K9;+0V2yuLn(3qaM%0Hkdh*WZqB%1!^^lonx^F_w2zGbuTJD$wc7kzFQ09IQEY8p76o&oFN23!c!Lak(w}RBO0ut^YP=lsF_lm{ZwH$mXrlLOruZ~SIY>HwP58l&xoaaC6UW+T}vmbIhkE752l|<vTm-=nb&EE}C?&S|rY*fd-x(L$0Iy6rA9q4H^LOt3Y`zU`p53IV(2e@xg?!&vN1iL)#ysN-pMa{mko9;W&ZnV?*$jAwMvhaxVwn;K0bnesr44bA{FPU!_b`|XX3qCnYeR7mq+MV}7;bg(=lYs4Ja(7dyy|9VZ+Xen9&fj91Sn6f|oTgp{@#?4Ofbw{wQ`|bf`oKYEh&huq=1kgRU9ahjuf*#5dK>!Q^B<!tiRh_=SD#sj-Wj`rZaznMIB%tv)KFyoyMa_1J&&?O>(TWep>LuVYPsauxVE~`O553@?OuXBNIsv7A>7hTp2|Y5k)LGy5GI6t!16xw)Gg?}B>9}>De}Q0<iXG*jtlMKxX`KW0K#Ds`jFwag+5$@e0%5-%SS?cZucV`3WmSnxbPUqg<s;h@Gn{35gxm_fwtche(8P4li@FJK|~t~kKKlLf{`ydKC+kNBQG=Dw#cuRp#ANUFIhek*~|EvTgRC^TI(xWI47<5vheduxOIFU@<{6|^Q>OmzAU&^xNYA&)Ng6~Xdcdk?O+ApdP&;HzsiE%9qnl*Uo!gdTaX7k{xb*s%^edA-_r4GhQpnYuWv@UN$os1mx6kok9ob$gG^rB_228PosIuv?W8vTb}<S(-RoI6k9Gfi0rZRY%&<J(^YH?-hkKPdxZm76mEDAJd#v}&LLA|?c<=An{op3d@S#n3p0&RTFS7cZr<wjZ9$@(X`1xBcG#`qeUxa)-9=HST9f${(!QCd}Ut0#b55~{4d@}xfmNzF3XQ6&eVr?Gs&56SckZ((@EkQn+SY!3Hz6(r_NZ$n}M||K93($|r0kR1BmVqNnkZXe%dA-4ltls{?i+9>+o*w)YlV@V^8_RIsJam-v4t>IThmLaIp-&j^!PKQ?sE>zRnST3+FW(skJ%*1hZvoz|8@L^|eJcy2O>ldZ+i820@gCS7UDgm*10#Q(W9{tdWbGt(bTZt;&hIQka1V}lGhFLv_YHP`cMrSYvFG?ruzzgq`T~5A5g+?>0oqCKjj{W~dt*xw$y)dI-55kTnoJL{>#6iV7opzP^!rPIOH8JiKO`qp95<O-f_&@b(h~SV^3X7=-<WkaQX@4|BQ;VZHBuw_OR=!{Cxxv>DcL60pW52RwNRJ1hPy>66ceSSQ3?zQ#E4OP+9-vF4TMqJvqRi%9~Gq@S_<%bdqlnPn7G!zSJWFaO8sf$T3V^u8eAjQFa0L3p#KBzDw(@UO8@`",
+    "retail": "H4sIAAAAAAAC/+1bbWwUxxmemfXd7dydzxhjbIPP9p2NMRhjivnwxbitQ38cFVIiFan5UZGEEpVWVSsRq1XpH1PIBwQCSYgqVRVxImE74C/V+D6SqrUipT8QVZGo1D+oCYiobYRUVY1aNUJy553d2Zv9vE/fr5v17szuzjPP+77z7juzc+sXn//JC19B/QgjNDI4soCno2dOHl09pkxH+xEkgnLp679GSEHHkcrKmG/W5EMtaANqQGuZsC0RtsEfOyhEv1LHL/O/vImAkmOuhHlbIGCIl8rAe/PjAhJwEFZTwVhD1LErjJnk4ycKwyq8yKsSMvbqGBbn+kXnJLsHdAD3CklpOBIP+aGaX6/u1/llpQvhx0Z1poNCsIQncE4KlH/MlLH0pGz/ZtcW6vQ6Z7XsZQP0Wg5f14yaXc3vxi+5Az74xkHsZUSoA56vYKv+3CDYow9k+0viGEYTnYrdmrD4uM3pdVdwxRPlyTNjSu5c4R6pyPbB3s+Aw12CC8JrccPrCWHSvT6Wz/Z5pXOjN/B+7OUfxEU+Uii/9z3PCOH3kE57toknv9ddUkhs85BOYfcUS3/bOA5eOliSbUTK8+zqxbCemCR+FkL9kkDN7JoqJyfdDDx26lGVqvof7AYieHjicIiD2BmAgF/EHBkO4zUftCkM0QKv1zTjnfhVgHEs3214noKa/IrDmJfj57uOD+o1NWAY6fYz+CWLURlvlz8c0vFB4yKrykxFqXZQk28mKU1eSVKJX1Q9LA+13zRKSemqXLbp/wv55itG6YJ09bJcJVAY/yE3frVA/SnXXrNB8q0kO7ydlPvP0f7GACrMT/kxj/2F/0K8FP1P3PqfeuIFfx1x81/Z/09z/w9bZlLaeGj1X5v8XIKwBY8d5adgTN0WqgVvHVF4xCQmftXx+XfEE0IPnUuqpIBpq/7QWa5SrmcBk15shBwHvHO8KiRRVfc+leoxq0g8NU9+aUn80uNSovx8KxWve4qavJgsSX/+3FKVFqs/+CnVgh/g5XhRoPAg9PlDPGxStWj9JePr5iuSn8rxS6Vl8KPS9Jfg5fGrtDz9UUn2p2b5VZ9Ky7B/0c8/f+CpTxt2KS46UVNynbbl34i+i6NWUqQz7U6dVDt3LH8jxoslLmGFg1SAX/C+VBTzZKZS/EKCUvTHFdqIkWttKtKalXanTq+D9N4v1/6EcxCDS14ly/nXqxZUTqLS+HN+Y/Y5Ymhv7onFtNnTRJmUaH/jNVZekOHn4v5wGiFi8QYsMVVGf610Z1n2I0U/EkdPxEZvldP/sjWRRUO3M2RbXTVL1VyCDHUWprOmVl92YHrNkb+OsaOiJcAl6I9d9FfQG6YnqLieSKZEOyLmK46r1eb+JybfLeU5cPN/OQqZdSe2GsjSBirJE539OP9IY44KxfNr9j5jiX+5TZFipOKALs/+2Bbf848NleGX5xuljiGa7V4vQ+fyx9DS/M4cxcIpZPP94tohRdqPVFz/cnCQVlKlzCEgfhzJFm87YopmpetfKpZUbN7GV8uyxdpOLDopeZ7vQp7AS2WMO+XrX+q468QftmyaTfz6LNTvYqFmvZ7qurnrT/LwY8v4576piHIu+ShyO0eQ7RNsD5mYoGTEJF1/6zzHjV16jxfv08Yv3FZ+c/T14scFxigVSe/xttzKj2z8uS1osr9S4Humk/653MwftMxqgib+xymz/9n1d/YxauK/nc3x+wrSX3gCMtnBPk4Kr6L6UZRge9M4uyJJpDrwP7Ms87uloMM11aWu6tqKU//LesHPEWdTTshXHK5dcGG57MofyGv/YvSnReuvVrj/qdT3qqn8llF6W+p/WpT/y1Ew937xKC383+r1ubLb81eY/1vjrxjdrM8/Kfr5py7x78pyfn5si7+kqPirfoBc4/9pqdfDedbkcvGH5I2/+e2f64NwHn7r+Odlf2p4ptkv1Dz8+d5RjA8+pHcWJ/7Cx//C+WEDnc7xdkiFVlvNI513XSr1Z2VWerHjLKcQ/mLmV5XaqOnJkkc95/lV5fmp58ovraL+9nQvU2375/acV1SHn9r87mJV/I+a+HOj71r3PzU2eeYn+N3mF5W1vNjOm2abVBrv1DXlN6e+DLJ439rqTx1nc6L/jzNpWrPV01+scVWz/53indn/1Srzq1XUn3Kbj6ed7F8N/6cO83959u/T87Xkxy72X/vxn0rvuj5L/MFV2KjHVu5ady3VUi3VUi2V/89VFWuFvRi3iQ8S0ESU7QkURQmXTx60JBZSFXSqHYtPSiZibKcoxgaKHkv9NukLiivL7ct27Fa2h9BWFPLE3ll+xoIFmdmkZGIdGyTXGYsmTthw6ooFy25NNHFsE8N2e2CTqTsOMofZ3ojCqNGT92xK+6HVjI1zbJxhFQ/sSiqZssvczPb1qBmt95T5ceqsgTX+SWmik+0bUSfa6Mk7nF6x8DIPmQiwfRMKINjdsePpxw7YEc49wpi7PLCL6eE0Zq0r6DpgH3DssQD3LT/zLJ8H9lF6nGF9DPsrwP6dY0/0cuwWhsUe2L7MIsMGGcepDozaZ7Q+2oce/qUb7WMe2WV7bu4ZohzPPEprC3Y/YNgLvwfeC18bZvh+tB/1M492x05m+jKY2+q8ri/wMrGuDrAWd3ra+V7meMbuG7vYPoB2oQHjIyMnbGt2MmPWFzFd93Hsfob1kvlI9l7G3r/gk4PMJweZpd15L2dbs2afBGwLl7uFSe2FvZ09ktU+xbkVVcVSL/fnBPMqiFe/RBfw441OcUv94HLWLjPEnFEWc0Ztsa7N9MXX7ezqagO6+r0P0bc7/Cf/c3V4dSe7PXQUTX6D7XAeYZZk0/bV7/oGR05sPvGdrtXI6kn0NKqHTxcvRtWjsxHWzlb1r/OQ++k7U+2I1AfoJzxXaed0JyKU0md53kk/mYXei9N35iDfQp+dh9wfnNRwwU81XLBrOoZIiAaf47htwecWIN8enOR5f/DThS5Egv7QuxoudF/DhWIaLvQ8z5tC999fB14Rit2APB56dw4iWn/oPm/HH35Pw4cfaPhwnOO2hY/x9reH3+N5f/gBzwORh1OAUyM903BOI8en4eeXUOQhz8ORnhler+GzKXCrUMNnXP76hhdm4NzfOD21DX6iaZyeBr2bGv/G5Yuvn5mD3N/0/hTwB5r+wfH1Td/nOLLh+rXNiNQpGz6/tgXqbbiu1dvwOc9J841rvJ2Ns7ydLRt/OL8eeFrmpuG8vWVgFvRrb93J82jrj2ahPdK2wHGBtn9ObUKksb1tcDaKSEO07cf8vn/T4hTcD25a5O3ENy3y9gOb/zUFepLoEsd3RYfm6lneEx2ah3xfdOk30N4T0aUlcLeR6L+XQO4D0aGbkI9GX+R5oOOLKahf3zE+A/nmji9uQL6tY3wB8tGOcV5P7dzL+cOde2cgj8Z+Ogv9GI+leX9ujf13HnK1O6HV607wesPdiSX4V/BE98+WQJ6R7v/x80DPlxpvzymNt+dLjbfnFOc9sGXkJtQnvb/l+g33HljqBT16Hy9tBd6+32l22LY6BaONf/uKZqftK5z/ie0rSyoiiq//NLcr2fGR1j87PuK4kQHlZhvgBj/muMjgx1ze+K4/8PtNu9XrYP/2oUOz8EFGdOjcLLQT33OL3+/dc2seIllk/x9nuhFZH0/8Sev3xKV5qNeXeGoBcB2jd2d5u6N3Ndzo3XnI+0a/tQB+EP/qn+egfkcsDX4Rqc0+a6mWaqmWaqmWaqmWvFN7SPyTQp9RijeI9aeGRnEt2CyukRZRCraLUtwo+WIaYgfujwnsXqMU7DUQemkA794h7jYOilLrIOYfCbF6u7V6O3FoSFzr2iPq9RilroRWGsQ9CVyxNbhaql76+YcY/R+HSjYqSUsAAA==",
+    "shareware": "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",
 }
 
 
-def load_save(version: str, src: Path | None = None) -> bytearray:
-    if src is not None and src.exists():
-        data = bytearray(src.read_bytes())
-    else:
-        blob = EMBEDDED_SAVES.get(version)
-        if not blob:
-            raise SystemExit(f"no embedded base save for version {version}")
-        import base64, gzip
-        data = bytearray(gzip.decompress(base64.b85decode(blob)))
+def load_save(version: str) -> bytearray:
+    blob = EMBEDDED_SAVES.get(version)
+    if not blob:
+        raise SystemExit(f"no embedded base save for version {version}")
+    import base64, gzip
+    data = bytearray(gzip.decompress(base64.b64decode(blob)))
     if len(data) != 19273:
         print(
             f"warning: unexpected save size {len(data)} (expected 19273 for non-SPEAR)",
@@ -303,28 +304,35 @@ PAYLOADS = {
     "asm": payload_asm,
 }
 
+# Default in-game save label per payload (the name shown in the Load Game menu).
+# Override with --name.
+PAYLOAD_NAMES = {
+    "reboot": "Reboot!",
+    "text": "Text + Shell",
+    "asm": "ASM payload!",
+}
+
 
 def build(args: argparse.Namespace) -> Path:
     defaults = VERSION_DEFAULTS[args.version]
     if not (0 <= args.slot <= 9):
         raise SystemExit("slot must be 0-9 (WL_MENU.C uses a single digit)")
 
-    src = defaults["src"]
     outdir = Path(args.outdir) if args.outdir is not None else DEFAULT_OUTDIR
     if not outdir.is_absolute():
         outdir = (Path.cwd() / outdir).resolve()
     outdir.mkdir(parents=True, exist_ok=True)
 
     ext = defaults["ext"]
-    src_used = src if src.exists() else None
-    save = load_save(args.version, src_used)
+    save = load_save(args.version)
     dgroup = resolve_dgroup(args)
 
     args.objlist_off = args.objlist_off if args.objlist_off is not None else defaults["objlist_off"]
     args.tilemap_off = args.tilemap_off if args.tilemap_off is not None else defaults["tilemap_off"]
 
     # Savegame header: 32-byte name field (null-padded). Checksum does not cover header.
-    name_bytes = args.name.encode("ascii", errors="replace")[:31]
+    name = args.name if args.name is not None else PAYLOAD_NAMES[args.payload]
+    name_bytes = name.encode("ascii", errors="replace")[:31]
     save[:SZ_HDR] = name_bytes.ljust(SZ_HDR, b"\x00")
 
     payload_fn = PAYLOADS[args.payload]
@@ -334,9 +342,9 @@ def build(args: argparse.Namespace) -> Path:
     out_path = outdir / f"SAVEGAM{args.slot}{ext}"
     out_path.write_bytes(save)
 
-    print(f"name: {args.name}")
+    print(f"name: {name}")
     print(f"version: {args.version} ({ext})")
-    print(f"source: {src if src_used else f'embedded:{args.version}'}")
+    print(f"source: embedded:{args.version}")
     print(f"wrote: {out_path}")
     print(f"checksum=0x{cs:08X}")
     print(
@@ -372,10 +380,10 @@ def main() -> None:
     )
 
     defaults = ap.add_argument_group("(defaults)")
-    defaults.add_argument("--name", default="Wolf2Shell", help="label for this save (default: Wolf2Shell)")
+    defaults.add_argument("--name", default=None, help="in-game save label (default: Reboot! / Text + Shell / ASM payload!)")
     defaults.add_argument(
         "--version",
-        choices=["retail"],  # "shareware" supported in codebase, commented out for now
+        choices=["retail", "shareware"],
         default="retail",
         help="game version (default: retail)",
     )
@@ -389,7 +397,7 @@ def main() -> None:
     defaults.add_argument(
         "--outdir",
         default=str(DEFAULT_OUTDIR),
-        help="output directory (default: savegames)",
+        help="output directory (default: ./output)",
     )
 
     advanced = ap.add_argument_group("(advanced)")

@@ -26,7 +26,7 @@ Those four hex digits are the number you pass to the save builder (run from the 
 python3 tools/make-save/make-save.py --psp 0192 --slot 2 --payload text
 ```
 
-The save is written to `savegames/` by default. Copy the generated `SAVEGAM2.WL6` next to `WOLF3D.EXE`, start Wolf3D **in the same DOS session**, and load slot 2.
+The save is written to `./output/` by default. Copy the generated `SAVEGAM2.WL6` next to `WOLF3D.EXE`, start Wolf3D **in the same DOS session**, and load slot 2.
 
 ## What the probe actually does
 

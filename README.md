@@ -19,8 +19,18 @@ Wolf3D savegames serialize actor objects (`objtype`) directly, including the `st
 
 - [`TECHNICAL_INFO.md`](TECHNICAL_INFO.md) — consolidated structures, save layout, DGROUP/PSP arithmetic, and the injection layout.
 - [`HURDLES.md`](HURDLES.md) — technical obstacles to reliable execution and their status (including portability to other builds).
+- [`SHAREWARE.md`](SHAREWARE.md) — shareware (`.WL1`) port: derived build constants and status.
 - [`tools/make-save/README.md`](tools/make-save/README.md) — builder usage, options, and save layout.
 - [`tools/probe/README.md`](tools/probe/README.md) — measuring the DOS PSP segment.
+
+## Supported builds
+
+`make-save.py --version` selects the target:
+
+| Version | Extension | `DGROUP_REL` | `objlist` | `tilemap` |
+| --- | --- | ---: | ---: | ---: |
+| `retail` | `.WL6` | `0x398D` | `0xB51C` | `0x75BA` |
+| `shareware` | `.WL1` | `0x3783` | `0xAB6E` | `0x6BD8` |
 
 ## Payloads
 
@@ -32,20 +42,26 @@ Wolf2Shell supports three payload modes:
 
 ## Savegames
 
-The ready-made saves live in [`savegames/`](savegames/):
+The ready-made saves live in [`savegames/`](savegames/) — `.WL6` files for
+retail, `.WL1` files for shareware (same three payloads, different build
+constants):
 
-| Savegame file | In-game name | What it does |
-| --- | --- | --- |
-| `savegames/SAVEGAM0.WL6` | Reboot! | Injects a two-byte `INT 19h` payload: loading the save warm-reboots the DOS machine. |
-| `savegames/SAVEGAM1.WL6` | Text + Shell | Injects a text-mode payload that prints the configured message (default "Wolf2Shell by Hypn"), writes it to `PWNED.txt`, waits for a key, then exits to DOS. |
-| `savegames/SAVEGAM2.WL6` | ASM payload! | Injects the assembled `wolf2shell.asm` payload: a VGA plasma, sine-wave scroller and PC-speaker demo; press a key to exit to DOS. |
+| Savegame file | Game version | In-game name | What it does |
+| --- | --- | --- | --- |
+| [SAVEGAM0.WL6](savegames/SAVEGAM0.WL6) | Retail | Reboot! | Injects a two-byte `INT 19h` payload: loading the save warm-reboots the DOS machine. |
+| [SAVEGAM1.WL6](savegames/SAVEGAM1.WL6) | Retail | Text + Shell | Injects a text-mode payload that prints the configured message (default "Wolf2Shell by Hypn"), writes it to `PWNED.txt`, waits for a key, then exits to DOS. |
+| [SAVEGAM2.WL6](savegames/SAVEGAM2.WL6) | Retail | ASM payload! | Injects the assembled `wolf2shell.asm` payload: a VGA plasma, sine-wave scroller and PC-speaker demo; press a key to exit to DOS. |
+| [SAVEGAM0.WL1](savegames/SAVEGAM0.WL1) | Shareware | Reboot! | Same as above, for the shareware build. |
+| [SAVEGAM1.WL1](savegames/SAVEGAM1.WL1) | Shareware | Text + Shell | Same as above, for the shareware build. |
+| [SAVEGAM2.WL1](savegames/SAVEGAM2.WL1) | Shareware | ASM payload! | Same as above, for the shareware build. |
 
 ### Playing the saves
 
-These saves are for **retail Wolf3D running under DOSBox**:
+These saves are for the matching Wolf3D build (retail `.WL6` or shareware
+`.WL1`) running under DOSBox:
 
-1. See [`tools/probe/`](tools/probe/README.md) to get the **PSP segment** for your DOS session. Run `PROBE.COM` immediately before `WOLF3D.EXE`, then read `PROBE.TXT`. If it differs from the default `0192`, rebuild the saves with `python3 tools/make-save/make-save.py --psp <hex> ...` first.
-2. Copy the `SAVEGAM0.WL6`, `SAVEGAM1.WL6` and `SAVEGAM2.WL6` files from `savegames/` into your Retail Wolf3D directory, next to `WOLF3D.EXE`.
+1. See [`tools/probe/`](tools/probe/README.md) to get the **PSP segment** for your DOS session. Run `PROBE.COM` immediately before `WOLF3D.EXE`, then read `PROBE.TXT`. If it differs from the default `0192`, rebuild the saves with `python3 tools/make-save/make-save.py --psp <hex> ...` (add `--version shareware` for the `.WL1` set) first.
+2. Copy the matching `SAVEGAM0`/`SAVEGAM1`/`SAVEGAM2` files (`.WL6` for retail, `.WL1` for shareware) from `savegames/` into your Wolf3D directory, next to `WOLF3D.EXE`.
 3. Start the game under DOSBox from that directory (mount it, then run `WOLF3D.EXE`).
 4. Choose **Load Game** in the main menu and select the slot with the matching in-game name (`Reboot!`, `Text + Shell`, or `ASM payload!`). The payload runs as soon as the save loads; the first one reboots, the other two wait for a key press before returning to DOS. The text payload also leaves `PWNED.txt` next to the game.
 
