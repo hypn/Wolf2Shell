@@ -281,14 +281,14 @@ bookkeeping; they do not prevent the `think` call.
 - **`reboot`** — two bytes `CD 19` (`INT 19h`) at obj#11+48 (`0xB7E0`); `think`
   points directly there. No register or segment dependencies.
 - **`text`** — payload assembled into the tilemap at DGROUP `0x75BA` (file
-  offset 178), maximum 4096 bytes. It sets video mode 3, prints the configured
-  message via BIOS teletype, writes the same message (no trailing newline) to
-  `PWNED.TXT` in the game's working directory via DOS `INT 21h`
-  (`3Ch`/`40h`/`3Eh`), prints a prompt, waits for a key, and exits via
-  `INT 21h AX=4C00`.
+  offset 178), maximum 4096 bytes. It calls the game's own `ShutdownId()` to
+  restore the hooked INT 08h/INT 09h/sound IRQ, sets video mode 3, prints the
+  configured message via BIOS teletype, prompts `(press any key to exit)`, waits
+  for a key, and exits via `INT 21h AX=4C00`.
 - **`asm`** — a custom 16-bit NASM payload assembled into the tilemap at the
   same offset. The shipped demo sets `DS`/`ES` from `CS`, switches to VGA mode
-  13h, runs a plasma/sine-scroller/PC-speaker effect, and exits on a key.
+  13h, and runs a plasma/sine-scroller/PC-speaker effect; it does not return to
+  DOS.
 
 An inline payload that exceeds the remaining space in obj#11 spills into
 following object records. Those donor objects must be neutralized
@@ -296,7 +296,64 @@ following object records. Those donor objects must be neutralized
 neutralization relies on `areabyplayer[0] == 0` for the save/level in question,
 and all offsets must be recalculated if the payload length changes.
 
-## 7. Caveats
+## 7. Recovering DOS state before returning to the shell
+
+The savegame hijack runs **inside** the game, after it has taken over the
+interrupt vectors the BIOS/DOS installed at boot. DOS does not restore those
+vectors when a program terminates, so a payload that ends with
+`INT 21h AX=4C00` leaves the IVT pointing at the game's ISRs — which live in
+the memory DOS is about to free:
+
+- **INT 09h (keyboard).** `INL_StartKbd()` (`ID_IN.C`) does
+  `OldKeyVect = getvect(9); setvect(9, INL_KeyService)`. `INL_KeyService` reads
+  the keyboard controller itself and **never chains to the BIOS**, so BIOS
+  `INT 16h` — the usual "press any key" wait — never sees a keystroke. Without a
+  restore, the `text` payload's key prompt hangs forever.
+- **INT 08h (timer) + sound IRQ.** The sound driver (`ID_SD.C`) does
+  `t0OldService = getvect(8); setvect(8, isr)` and hooks the SB IRQ. After exit
+  the next timer tick jumps into freed memory.
+
+**Fix: call the game's own `ShutdownId()` (`WL_MAIN.C`) before exiting.** It runs
+`US_Shutdown(); SD_Shutdown(); PM_Shutdown(); IN_Shutdown(); VW_Shutdown();
+CA_Shutdown(); MM_Shutdown();` — `SD_Shutdown()` restores INT 08h and the SB IRQ,
+and `IN_Shutdown()` restores INT 09h and clears the BIOS ctrl/alt/shift flags.
+Both are guarded by `SD_Started` / `IN_Started`, which are set during normal
+play, so they run.
+
+`ShutdownId()` is build-specific. It is easy to locate by its signature —
+`push bp; mov bp, sp;` followed by exactly **seven far calls**, then
+`pop bp; retf`:
+
+| Build | load-module offset | far call from the payload |
+| --- | ---: | --- |
+| retail `.WL6` | `0x54B9` | `DS-0x3442:0x0009` |
+| shareware `.WL1` | `0x50BA` | `DS-0x3278:0x000A` |
+
+The delta is LOAD-relative, so it is PSP-independent. A payload far-calls it
+with the usual real-mode `retf` trick:
+
+```asm
+        mov ax, ds                  ; DS = DGROUP
+        sub ax, 0x3442              ; -> ShutdownId's code segment
+        push cs                     ; return segment
+        push word .done             ; return offset
+        push ax                     ; target segment
+        push strict word 0x0009     ; target offset
+        retf
+.done:
+        push cs
+        pop ds                      ; ShutdownId may have clobbered DS
+```
+
+The `make-save.py` `text` payload does this at entry, so its key prompt works
+and its exit is clean. The retail `s12.py` / `pwned_shellcode.asm` goes further
+and also force-writes IVT[8]/[9] from the game's saved vectors
+(`DGROUP:0xECE3` and `DGROUP:0x4786`) in case the shutdown guards skip.
+
+Payloads that deliberately never return to DOS (for example the `asm`
+demoscene) need none of this.
+
+## 8. Caveats
 
 - The DGROUP delta is specific to the executable build; the PSP/load segment is
   specific to the DOS session.

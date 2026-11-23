@@ -17,6 +17,7 @@ layout in [../TECHNICAL_INFO.md](../../TECHNICAL_INFO.md), and the top-level
 | `make-save.py` | The builder. Python 3, no third-party modules. |
 | `embed-save.py` | Refreshes an embedded base save from a clean save file. |
 | `wolf2shell.asm` | Demo payload source for `--payload asm` (VGA plasma, scroller, PC-speaker). |
+| `calc.asm` | Interactive on-screen calculator payload source for `--payload asm`. |
 
 The clean base saves are **embedded** in `make-save.py` as gzip+base64 strings
 (`EMBEDDED_SAVES`), so the builder is self-contained and needs no external save
@@ -38,9 +39,11 @@ Run from the repository root:
 python3 make-save.py --slot 0 --payload reboot
 python3 make-save.py --slot 1 --payload text --text "Wolf2Shell by Hypn"
 python3 make-save.py --slot 2 --payload asm --asm wolf2shell.asm
+python3 make-save.py --slot 3 --payload asm --asm calc.asm --name "Calculator"
 
 # Shareware (Wolfenstein 3D v1.4, SAVEGAM?.WL1):
 python3 make-save.py --version shareware --slot 0 --payload reboot
+python3 make-save.py --version shareware --slot 3 --payload asm --asm calc.asm --name "Calculator"
 ```
 
 Output goes to `./output/` (relative to the current working directory, not the
@@ -75,14 +78,23 @@ to `WOLF3D.EXE` and load that slot in-game.
 - **`reboot`** — writes a two-byte `INT 19h` (`CD 19`) warm-reboot stub inline
   in object #11 and points `think` at it. No register or segment dependencies;
   used to verify that the hijack fires.
-- **`text`** — assembles a small payload that switches to text mode, prints
-  `--text`, writes the same message to `PWNED.txt` in the game's working
-  directory (via DOS `INT 21h` create/write/close), waits for a key, and exits
-  to DOS. The payload is placed in the tilemap and `think` points at that
-  DGROUP offset.
+- **`text`** — assembles a small payload that first calls the game's own
+  `ShutdownId()` to restore the vectors the game hooked (INT 08h timer, INT 09h
+  keyboard, sound IRQ), then switches to text mode, prints `--text`, prompts
+  `(press any key to exit)`, waits for a key, and exits to DOS. The payload is
+  placed in the tilemap and `think` points at that DGROUP offset. Without the
+  `ShutdownId()` call the keyboard ISR would swallow the keypress and the timer
+  ISR would fault once DOS frees the game's memory on exit.
 - **`asm`** — assembles a custom 16-bit NASM source (`--asm`, default
   `wolf2shell.asm`) and injects it the same way as `text`. The source may use
   the `__PAYLOAD_ORG__` placeholder for the tilemap injection offset.
+  `calc.asm` is a second ready-made `asm` payload: an interactive VGA
+  calculator (numpad/top-row digits, `+ - * /`, Enter to evaluate, `C` to
+  clear, Backspace to delete, Esc to exit). It installs its own `INT 09h`
+  keyboard handler — Wolf3D's own handler does not chain to the BIOS, so
+  `INT 16h` cannot be used — and restores it before exiting to DOS. Both
+  builds are also shipped pre-built as `savegames/SAVEGAM3.WL6` (retail) and
+  `savegames/SAVEGAM3.WL1` (shareware).
 
 ## How the injection works
 
@@ -158,8 +170,6 @@ LZEXE-packed shareware `WOLF3D.EXE` v1.4. See [`../../HURDLES.md`](../../HURDLES
   the three payloads are distinguishable in the Load Game menu.
 - Generated files are written as `SAVEGAM<slot>.WL6` (retail) or
   `SAVEGAM<slot>.WL1` (shareware); use `--outdir` to write elsewhere.
-- The `text` payload creates or overwrites `PWNED.txt` next to the game and
-  writes the `--text` message into it (no trailing newline).
 - The retail defaults (`--psp 0192`, `DGROUP_REL 0x398D`, object/tilemap offsets)
   match the retail GOG build; `--version shareware` uses the shareware constants.
   Runtime segment values vary by DOS environment, so measure the PSP in the

