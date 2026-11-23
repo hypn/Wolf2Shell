@@ -4,6 +4,21 @@
 
 You can think of it as a little "run-this-first helper". Strictly speaking it is **not** a TSR: it does not stay resident or hook interrupts. It starts, writes one file, and exits.
 
+Previously seen/collected values:
+
+| Name | Windows | DOS Mode |
+| --- | --- | --- |
+| DOSBox 0.74 | - | 0192 |
+| dosbox-staging | - | 0193 |
+| DOSBox-X | - | 0813 |
+| DOS 6.22 | - | 1EA3 |
+| Win 95a | 08DF | 0868 |
+| Win 95b | 0CDF | 0C48 |
+| Win 95c | 0CDF | 0C48 |
+| Win 98 | 09DF | 08E1 |
+| Win 98SE | 09DF | 08E1 |
+
+
 ## The short version
 
 From the DOS prompt, in the directory that contains `WOLF3D.EXE`:
